@@ -3,6 +3,7 @@ from dataclasses import dataclass
 import numpy as np
 import matplotlib.pyplot as plt
 from .terrain import generate_reference_and_limits
+import pandas as pd
 
 class Submarine:
     def __init__(self):
@@ -29,20 +30,20 @@ class Submarine:
 
     def get_depth(self) -> float:
         return self.pos_y
-    
+
     def get_position(self) -> tuple:
         return self.pos_x, self.pos_y
-    
+
     def reset_state(self):
         self.pos_x = 0
         self.pos_y = 0
         self.vel_x = 1
         self.vel_y = 0
-    
+
 class Trajectory:
     def __init__(self, position: np.ndarray):
-        self.position = position  
-        
+        self.position = position
+
     def plot(self):
         plt.plot(self.position[:, 0], self.position[:, 1])
         plt.show()
@@ -53,9 +54,9 @@ class Trajectory:
         max_height = np.max(mission.cave_height)
 
         plt.fill_between(x_values, mission.cave_height, mission.cave_depth, color='blue', alpha=0.3)
-        plt.fill_between(x_values, mission.cave_depth, min_depth*np.ones(len(x_values)), 
+        plt.fill_between(x_values, mission.cave_depth, min_depth*np.ones(len(x_values)),
                          color='saddlebrown', alpha=0.3)
-        plt.fill_between(x_values, max_height*np.ones(len(x_values)), mission.cave_height, 
+        plt.fill_between(x_values, max_height*np.ones(len(x_values)), mission.cave_height,
                          color='saddlebrown', alpha=0.3)
         plt.plot(self.position[:, 0], self.position[:, 1], label='Trajectory')
         plt.plot(mission.reference, 'r', linestyle='--', label='Reference')
@@ -75,8 +76,12 @@ class Mission:
 
     @classmethod
     def from_csv(cls, file_name: str):
-        # You are required to implement this method
-        pass
+        df = pd.read_csv(file_name)
+        return cls(
+            reference=df["reference"].to_numpy(),
+            cave_height=df["cave_height"].to_numpy(),
+            cave_depth=df["cave_depth"].to_numpy()
+        )
 
 
 class ClosedLoop:
@@ -89,7 +94,7 @@ class ClosedLoop:
         T = len(mission.reference)
         if len(disturbances) < T:
             raise ValueError("Disturbances must be at least as long as mission duration")
-        
+
         positions = np.zeros((T, 2))
         actions = np.zeros(T)
         self.plant.reset_state()
@@ -101,7 +106,7 @@ class ClosedLoop:
             self.plant.transition(actions[t], disturbances[t])
 
         return Trajectory(positions)
-        
+
     def simulate_with_random_disturbances(self, mission: Mission, variance: float = 0.5) -> Trajectory:
         disturbances = np.random.normal(0, variance, len(mission.reference))
         return self.simulate(mission, disturbances)
